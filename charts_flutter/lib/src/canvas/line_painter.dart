@@ -12,7 +12,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 import 'dart:ui' as ui show Shader;
 import 'dart:math' show Point, Rectangle;
 import 'package:charts_flutter/src/util/monotonex.dart';
@@ -95,7 +94,14 @@ class LinePainter {
   }
   /// Draws smooth lines between each point.
   void _drawSmoothLine(Canvas canvas, Paint paint, List<Point> points) {
-    var path = MonotoneX.initPath(points);
+    List<Point>uniquePoints=[];
+    points.forEach((e){
+      bool isDuplicated = uniquePoints.firstWhere((p)=>p.x == e.x && p.y == e.y, orElse: ()=>null) != null;
+      if(!isDuplicated){
+        uniquePoints.add(e);
+      }
+    });
+    var path = MonotoneX.initPath(uniquePoints);
     canvas.drawPath(path, paint);
   }
   /// Draws solid lines between each point.
