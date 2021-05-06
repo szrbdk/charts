@@ -68,7 +68,7 @@ class PanBehavior<D> implements ChartBehavior<D> {
   }
 
   PanBehavior() {
-    _listener = new GestureListener(
+    _listener = GestureListener(
         onTapTest: onTapTest,
         onDragStart: onDragStart,
         onDragUpdate: onDragUpdate,
@@ -77,9 +77,9 @@ class PanBehavior<D> implements ChartBehavior<D> {
 
   /// Injects the behavior into a chart.
   @override
-  attachTo(BaseChart<D> chart) {
+  void attachTo(BaseChart<D> chart) {
     if (!(chart is CartesianChart)) {
-      throw new ArgumentError(
+      throw ArgumentError(
           'PanBehavior can only be attached to a CartesianChart');
     }
 
@@ -91,15 +91,15 @@ class PanBehavior<D> implements ChartBehavior<D> {
 
     // Wrap domain axis tick provider with the panning behavior one.
     _domainAxisTickProvider =
-        new PanningTickProvider<D>(_chart.domainAxis.tickProvider);
+        PanningTickProvider<D>(_chart.domainAxis.tickProvider);
     _chart.domainAxis.tickProvider = _domainAxisTickProvider;
   }
 
   /// Removes the behavior from a chart.
   @override
-  removeFrom(BaseChart<D> chart) {
+  void removeFrom(BaseChart<D> chart) {
     if (!(chart is CartesianChart)) {
-      throw new ArgumentError(
+      throw ArgumentError(
           'PanBehavior can only be attached to a CartesianChart');
     }
 
@@ -164,11 +164,18 @@ class PanBehavior<D> implements ChartBehavior<D> {
 
     double domainScalingFactor = domainAxis.viewportScalingFactor;
 
-    double domainChange =
-        domainAxis.viewportTranslatePx + localPosition.x - _lastPosition.x;
+    double domainChange = 0.0;
+    if (domainAxis.isVertical) {
+      domainChange =
+          domainAxis.viewportTranslatePx + localPosition.y - _lastPosition.y;
+    } else {
+      domainChange =
+          domainAxis.viewportTranslatePx + localPosition.x - _lastPosition.x;
+    }
 
     domainAxis.setViewportSettings(domainScalingFactor, domainChange,
-        drawAreaWidth: chart.drawAreaBounds.width);
+        drawAreaWidth: chart.drawAreaBounds.width,
+        drawAreaHeight: chart.drawAreaBounds.height);
 
     _lastPosition = localPosition;
 
@@ -218,4 +225,4 @@ class PanBehavior<D> implements ChartBehavior<D> {
 }
 
 /// Callback for when panning is completed.
-typedef void PanningCompletedCallback();
+typedef PanningCompletedCallback = void Function();

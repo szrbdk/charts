@@ -66,7 +66,7 @@ abstract class BaseChart<D> {
   /// initial draw cycle (e.g. a [Legend] may hide some series).
   List<MutableSeries<D>> _currentSeriesList;
 
-  Set<String> _usingRenderers = Set<String>();
+  Set<String> _usingRenderers = <String>{};
   Map<String, List<MutableSeries<D>>> _rendererToSeriesList;
 
   final _seriesRenderers = <String, SeriesRenderer<D>>{};
@@ -87,6 +87,13 @@ abstract class BaseChart<D> {
 
   final _selectionModels = <SelectionModelType, MutableSelectionModel<D>>{};
 
+  /// Whether selected data should be restricted to only have points that
+  /// cover this event location.
+  ///
+  /// When this is true, selection logic would ignore points that are close to
+  /// event location but does not cover event location.
+  bool get selectExactEventLocation => false;
+
   /// Whether data should be selected by nearest domain distance, or by relative
   /// distance.
   ///
@@ -95,6 +102,12 @@ abstract class BaseChart<D> {
   /// Scatter plots, for example, may have many overlapping data with the same
   /// domain value.
   bool get selectNearestByDomain => true;
+
+  /// Whether data should be expanded by to include all points overlapping the
+  /// selection point
+  ///
+  /// Should be true for Scatter plots.
+  bool get selectOverlappingPoints => false;
 
   final _lifecycleListeners = <LifecycleListener<D>>[];
 
@@ -114,6 +127,24 @@ abstract class BaseChart<D> {
     }
 
     configurationChanged();
+  }
+
+  bool _chartIsDirty = false;
+
+  /// If the chart configuration has changed and requires a redraw.
+  bool get chartIsDirty => _chartIsDirty;
+
+  /// Resets the chart dirty flag to `false`.
+  void resetChartDirtyFlag() {
+    _chartIsDirty = false;
+  }
+
+  /// Marks the chart as dirty.
+  ///
+  /// When a chart axis or configurable is changed and will require a redraw
+  /// next frame the chart must be marked dirty.
+  void markChartDirty() {
+    _chartIsDirty = true;
   }
 
   /// Finish configuring components that require context and graphics factory.
@@ -229,9 +260,14 @@ abstract class BaseChart<D> {
 
     final details = <DatumDetails<D>>[];
     _usingRenderers.forEach((String rendererId) {
-      details.addAll(getSeriesRenderer(rendererId)
-          .getNearestDatumDetailPerSeries(
-              drawAreaPoint, selectNearestByDomain, boundsOverride));
+      details
+          .addAll(getSeriesRenderer(rendererId).getNearestDatumDetailPerSeries(
+        drawAreaPoint,
+        selectNearestByDomain,
+        boundsOverride,
+        selectOverlappingPoints: selectOverlappingPoints,
+        selectExactEventLocation: selectExactEventLocation,
+      ));
     });
 
     details.sort((DatumDetails<D> a, DatumDetails<D> b) {
@@ -549,7 +585,7 @@ abstract class BaseChart<D> {
     Map<String, List<MutableSeries<D>>> rendererToSeriesList = {};
 
     var unusedRenderers = _usingRenderers;
-    _usingRenderers = Set<String>();
+    _usingRenderers = <String>{};
 
     // Build map of rendererIds to SeriesLists.
     seriesList.forEach((MutableSeries<D> series) {
@@ -587,7 +623,7 @@ abstract class BaseChart<D> {
     // Request animation
     if (animatingThisDraw) {
       animationPercent = 0.0;
-      context.requestAnimation(this.transition);
+      context.requestAnimation(transition);
     } else {
       animationPercent = 1.0;
       context.requestPaint();
@@ -612,12 +648,13 @@ abstract class BaseChart<D> {
     }
   }
 
-  bool get animatingThisDraw => (transition != null &&
+  bool get animatingThisDraw =>
+      transition != null &&
       transition.inMilliseconds > 0 &&
-      !_animationsTemporarilyDisabled);
+      !_animationsTemporarilyDisabled;
 
   @protected
-  fireOnDraw(List<MutableSeries<D>> seriesList) {
+  void fireOnDraw(List<MutableSeries<D>> seriesList) {
     _lifecycleListeners.forEach((LifecycleListener<D> listener) {
       if (listener.onData != null) {
         listener.onData(seriesList);
@@ -626,7 +663,7 @@ abstract class BaseChart<D> {
   }
 
   @protected
-  fireOnPreprocess(List<MutableSeries<D>> seriesList) {
+  void fireOnPreprocess(List<MutableSeries<D>> seriesList) {
     _lifecycleListeners.forEach((LifecycleListener<D> listener) {
       if (listener.onPreprocess != null) {
         listener.onPreprocess(seriesList);
@@ -635,7 +672,7 @@ abstract class BaseChart<D> {
   }
 
   @protected
-  fireOnPostprocess(List<MutableSeries<D>> seriesList) {
+  void fireOnPostprocess(List<MutableSeries<D>> seriesList) {
     _lifecycleListeners.forEach((LifecycleListener<D> listener) {
       if (listener.onPostprocess != null) {
         listener.onPostprocess(seriesList);
@@ -644,7 +681,7 @@ abstract class BaseChart<D> {
   }
 
   @protected
-  fireOnAxisConfigured() {
+  void fireOnAxisConfigured() {
     _lifecycleListeners.forEach((LifecycleListener<D> listener) {
       if (listener.onAxisConfigured != null) {
         listener.onAxisConfigured();
@@ -653,7 +690,7 @@ abstract class BaseChart<D> {
   }
 
   @protected
-  fireOnPostrender(ChartCanvas canvas) {
+  void fireOnPostrender(ChartCanvas canvas) {
     _lifecycleListeners.forEach((LifecycleListener<D> listener) {
       if (listener.onPostrender != null) {
         listener.onPostrender(canvas);
@@ -662,7 +699,7 @@ abstract class BaseChart<D> {
   }
 
   @protected
-  fireOnAnimationComplete() {
+  void fireOnAnimationComplete() {
     _lifecycleListeners.forEach((LifecycleListener<D> listener) {
       if (listener.onAnimationComplete != null) {
         listener.onAnimationComplete();
@@ -671,7 +708,7 @@ abstract class BaseChart<D> {
   }
 
   /// Called to free up any resources due to chart going away.
-  destroy() {
+  void destroy() {
     // Walk them in add order to support behaviors that remove other behaviors.
     for (var i = 0; i < _behaviorStack.length; i++) {
       _behaviorStack[i].removeFrom(this);
@@ -689,21 +726,21 @@ class LifecycleListener<D> {
   /// This step is good for processing the data (running averages, percentage of
   /// first, etc). It can also be used to add Series of data (trend line) or
   /// remove a line as mentioned above, removing Series.
-  final LifecycleSeriesListCallback onData;
+  final LifecycleSeriesListCallback<D> onData;
 
   /// Called for every redraw given the original SeriesList resulting from the
   /// previous onData.
   ///
   /// This step is good for injecting default attributes on the Series before
   /// the renderers process the data (ex: before stacking measures).
-  final LifecycleSeriesListCallback onPreprocess;
+  final LifecycleSeriesListCallback<D> onPreprocess;
 
   /// Called after the chart and renderers get a chance to process the data but
   /// before the axes process them.
   ///
   /// This step is good if you need to alter the Series measure values after the
   /// renderers have processed them (ex: after stacking measures).
-  final LifecycleSeriesListCallback onPostprocess;
+  final LifecycleSeriesListCallback<D> onPostprocess;
 
   /// Called after the Axes have been configured.
   /// This step is good if you need to use the axes to get any cartesian
@@ -731,6 +768,7 @@ class LifecycleListener<D> {
       this.onAnimationComplete});
 }
 
-typedef LifecycleSeriesListCallback<D>(List<MutableSeries<D>> seriesList);
-typedef LifecycleCanvasCallback(ChartCanvas canvas);
-typedef LifecycleEmptyCallback();
+typedef LifecycleSeriesListCallback<D> = void Function(
+    List<MutableSeries<D>> seriesList);
+typedef LifecycleCanvasCallback = void Function(ChartCanvas canvas);
+typedef LifecycleEmptyCallback = void Function();

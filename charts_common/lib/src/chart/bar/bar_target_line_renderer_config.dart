@@ -57,14 +57,13 @@ class BarTargetLineRendererConfig<D> extends BaseBarRendererConfig<D> {
           layoutPaintOrder: layoutPaintOrder,
           minBarLengthPx: minBarLengthPx,
           strokeWidthPx: strokeWidthPx,
-          symbolRenderer: symbolRenderer ?? new LineSymbolRenderer(),
+          symbolRenderer: symbolRenderer ?? LineSymbolRenderer(),
           weightPattern: weightPattern,
         );
 
   @override
   BarTargetLineRenderer<D> build() {
-    return new BarTargetLineRenderer<D>(
-        config: this, rendererId: customRendererId);
+    return BarTargetLineRenderer<D>(config: this, rendererId: customRendererId);
   }
 
   @override
@@ -78,7 +77,7 @@ class BarTargetLineRendererConfig<D> extends BaseBarRendererConfig<D> {
     return other.overDrawOuterPx == overDrawOuterPx &&
         other.overDrawPx == overDrawPx &&
         other.roundEndCaps == roundEndCaps &&
-        super == (other);
+        super == other;
   }
 
   @override

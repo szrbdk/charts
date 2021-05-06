@@ -18,7 +18,7 @@ import 'base_time_stepper.dart';
 
 /// Minute stepper where ticks generated aligns with the hour.
 class MinuteTimeStepper extends BaseTimeStepper {
-  static const _defaultIncrements = const [5, 10, 15, 20, 30];
+  static const _defaultIncrements = [5, 10, 15, 20, 30];
   static const _millisecondsInMinute = 60 * 1000;
 
   final List<int> _allowedTickIncrements;
@@ -40,13 +40,13 @@ class MinuteTimeStepper extends BaseTimeStepper {
             .any((increment) => increment <= 0 || increment > 60) ==
         false);
 
-    return new MinuteTimeStepper._internal(
-        dateTimeFactory, allowedTickIncrements);
+    return MinuteTimeStepper._internal(dateTimeFactory, allowedTickIncrements);
   }
 
   @override
   int get typicalStepSizeMs => _millisecondsInMinute;
 
+  @override
   List<int> get allowedTickIncrements => _allowedTickIncrements;
 
   /// Picks a tick start time that guarantees the start of the hour is included.
@@ -73,6 +73,6 @@ class MinuteTimeStepper extends BaseTimeStepper {
 
   @override
   DateTime getNextStepTime(DateTime time, int tickIncrement) {
-    return time.add(new Duration(minutes: tickIncrement));
+    return time.add(Duration(minutes: tickIncrement));
   }
 }

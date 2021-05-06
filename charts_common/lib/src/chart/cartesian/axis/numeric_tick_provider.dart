@@ -49,7 +49,7 @@ class NumericTickProvider extends BaseTickProvider<num> {
   static const MIN_DIPS_BETWEEN_TICKS = 25;
 
   /// Potential steps available to the baseTen value of the data.
-  static const DEFAULT_STEPS = const [
+  static const DEFAULT_STEPS = [
     0.01,
     0.02,
     0.025,
@@ -187,8 +187,8 @@ class NumericTickProvider extends BaseTickProvider<num> {
     assert(steps != null && steps.isNotEmpty);
     steps.sort();
 
-    final stepSet = new Set.from(steps);
-    _allowedSteps = new List<double>(stepSet.length * 3);
+    final stepSet = Set.from(steps);
+    _allowedSteps = List<double>.filled(stepSet.length * 3, 0);
     int stepIndex = 0;
     for (double step in stepSet) {
       assert(1.0 <= step && step < 10.0);
@@ -220,7 +220,7 @@ class NumericTickProvider extends BaseTickProvider<num> {
                 : (tickHint.start / stepSize).ceil()));
     final tickStart =
         (scale.viewportDomain.min / stepSize).ceil() * stepSize + tickZeroShift;
-    final stepInfo = new _TickStepInfo(stepSize.abs(), tickStart);
+    final stepInfo = _TickStepInfo(stepSize.abs(), tickStart);
     final tickValues = _getTickValues(stepInfo, tickHint.tickCount);
 
     // Create ticks from domain values.
@@ -299,8 +299,7 @@ class NumericTickProvider extends BaseTickProvider<num> {
           final tickValues = _getTickValues(stepInfo, tickCount);
 
           if (viewportExtensionEnabled) {
-            mutableScale.viewportDomain =
-                new NumericExtents(firstTick, lastTick);
+            mutableScale.viewportDomain = NumericExtents(firstTick, lastTick);
           }
 
           // Create ticks from domain values.
@@ -414,7 +413,7 @@ class NumericTickProvider extends BaseTickProvider<num> {
     // If the range contains zero, ensure that zero is a tick.
     if (high >= 0 && low <= 0) {
       // determine the ratio of regions that are above the zero axis.
-      final posRegionRatio = (high > 0 ? min(1.0, high / (high - low)) : 0.0);
+      final posRegionRatio = high > 0 ? min(1.0, high / (high - low)) : 0.0;
       var positiveRegionCount = (regionCount * posRegionRatio).ceil();
       var negativeRegionCount = regionCount - positiveRegionCount;
       // Ensure that negative regions are not excluded, unless there are no
@@ -456,7 +455,7 @@ class NumericTickProvider extends BaseTickProvider<num> {
         final tmpStepSize = _removeRoundingErrors(step * favoredTensBase);
 
         // If prefer whole number, then don't allow a step that isn't one.
-        if (dataIsInWholeNumbers && (tmpStepSize).round() != tmpStepSize) {
+        if (dataIsInWholeNumbers && tmpStepSize.round() != tmpStepSize) {
           continue;
         }
 
@@ -467,7 +466,7 @@ class NumericTickProvider extends BaseTickProvider<num> {
           double stepStart = negativeRegionCount > 0
               ? (-1 * tmpStepSize * negativeRegionCount)
               : 0.0;
-          return new _TickStepInfo(tmpStepSize, stepStart);
+          return _TickStepInfo(tmpStepSize, stepStart);
         }
       }
     } else {
@@ -479,7 +478,7 @@ class NumericTickProvider extends BaseTickProvider<num> {
         final tmpStepSize = _removeRoundingErrors(step * diffTensBase);
 
         // If prefer whole number, then don't allow a step that isn't one.
-        if (dataIsInWholeNumbers && (tmpStepSize).round() != tmpStepSize) {
+        if (dataIsInWholeNumbers && tmpStepSize.round() != tmpStepSize) {
           continue;
         }
 
@@ -487,22 +486,21 @@ class NumericTickProvider extends BaseTickProvider<num> {
         // But wait until the last step to prevent the cost of the formatter.
         double tmpStepStart = _getStepLessThan(low, tmpStepSize);
         if (tmpStepStart + (tmpStepSize * regionCount) >= high) {
-          return new _TickStepInfo(tmpStepSize, tmpStepStart);
+          return _TickStepInfo(tmpStepSize, tmpStepStart);
         }
       }
     }
 
-    return new _TickStepInfo(1.0, low.floorToDouble());
+    return _TickStepInfo(1.0, low.floorToDouble());
   }
 
   List<double> _getTickValues(_TickStepInfo steps, int tickCount) {
-    final tickValues = new List<double>(tickCount);
     // We have our size and start, assign all the tick values to the given array.
-    for (int i = 0; i < tickCount; i++) {
-      tickValues[i] = dataToAxisUnitConverter.invert(
-          _removeRoundingErrors(steps.tickStart + (i * steps.stepSize)));
-    }
-    return tickValues;
+    return [
+      for (int i = 0; i < tickCount; i++)
+        dataToAxisUnitConverter.invert(
+            _removeRoundingErrors(steps.tickStart + (i * steps.stepSize))),
+    ];
   }
 
   /// Given the axisDimensions update the tick counts given they are not fixed.

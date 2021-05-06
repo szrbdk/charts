@@ -46,11 +46,13 @@ abstract class DateTimeFactory {
 class LocalDateTimeFactory implements DateTimeFactory {
   const LocalDateTimeFactory();
 
+  @override
   DateTime createDateTimeFromMilliSecondsSinceEpoch(
       int millisecondsSinceEpoch) {
-    return new DateTime.fromMillisecondsSinceEpoch(millisecondsSinceEpoch);
+    return DateTime.fromMillisecondsSinceEpoch(millisecondsSinceEpoch);
   }
 
+  @override
   DateTime createDateTime(int year,
       [int month = 1,
       int day = 1,
@@ -59,26 +61,27 @@ class LocalDateTimeFactory implements DateTimeFactory {
       int second = 0,
       int millisecond = 0,
       int microsecond = 0]) {
-    return new DateTime(
+    return DateTime(
         year, month, day, hour, minute, second, millisecond, microsecond);
   }
 
   /// Returns a [DateFormat].
-  DateFormat createDateFormat(String pattern) {
-    return new DateFormat(pattern);
-  }
+  @override
+  DateFormat createDateFormat(String pattern) => DateFormat(pattern);
 }
 
 /// An UTC time [DateTimeFactory].
 class UTCDateTimeFactory implements DateTimeFactory {
   const UTCDateTimeFactory();
 
+  @override
   DateTime createDateTimeFromMilliSecondsSinceEpoch(
       int millisecondsSinceEpoch) {
-    return new DateTime.fromMillisecondsSinceEpoch(millisecondsSinceEpoch,
+    return DateTime.fromMillisecondsSinceEpoch(millisecondsSinceEpoch,
         isUtc: true);
   }
 
+  @override
   DateTime createDateTime(int year,
       [int month = 1,
       int day = 1,
@@ -87,12 +90,11 @@ class UTCDateTimeFactory implements DateTimeFactory {
       int second = 0,
       int millisecond = 0,
       int microsecond = 0]) {
-    return new DateTime.utc(
+    return DateTime.utc(
         year, month, day, hour, minute, second, millisecond, microsecond);
   }
 
   /// Returns a [DateFormat].
-  DateFormat createDateFormat(String pattern) {
-    return new DateFormat(pattern);
-  }
+  @override
+  DateFormat createDateFormat(String pattern) => DateFormat(pattern);
 }

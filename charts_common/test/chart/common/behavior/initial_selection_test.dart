@@ -36,9 +36,13 @@ class FakeRenderer extends BaseSeriesRenderer {
 
   @override
   List<DatumDetails> getNearestDatumDetailPerSeries(
-      Point<double> chartPoint, bool byDomain, Rectangle<int> boundsOverride) {
-    return null;
-  }
+    Point<double> chartPoint,
+    bool byDomain,
+    Rectangle<int> boundsOverride, {
+    selectOverlappingPoints = false,
+    selectExactEventLocation = false,
+  }) =>
+      null;
 
   @override
   void paint(ChartCanvas canvas, double animationPercent) {}
@@ -52,7 +56,7 @@ class FakeChart extends BaseChart {
   List<DatumDetails> getDatumDetails(SelectionModelType type) => [];
 
   @override
-  SeriesRenderer makeDefaultRenderer() => new FakeRenderer();
+  SeriesRenderer makeDefaultRenderer() => FakeRenderer();
 
   void requestOnDraw(List<MutableSeries> seriesList) {
     fireOnDraw(seriesList);
@@ -69,7 +73,7 @@ void main() {
 
   InitialSelection _makeBehavior(SelectionModelType selectionModelType,
       {List<String> selectedSeries, List<SeriesDatumConfig> selectedData}) {
-    InitialSelection behavior = new InitialSelection(
+    InitialSelection behavior = InitialSelection(
         selectionModelType: selectionModelType,
         selectedSeriesConfig: selectedSeries,
         selectedDataConfig: selectedData);
@@ -80,36 +84,36 @@ void main() {
   }
 
   setUp(() {
-    _chart = new FakeChart();
+    _chart = FakeChart();
 
-    _series1 = new MutableSeries(new Series(
+    _series1 = MutableSeries(Series(
         id: 'mySeries1',
         data: ['A', 'B', 'C', 'D'],
         domainFn: (dynamic datum, __) => datum,
-        measureFn: (_, __) {}));
+        measureFn: (_, __) => null));
 
-    _series2 = new MutableSeries(new Series(
+    _series2 = MutableSeries(Series(
         id: 'mySeries2',
         data: ['W', 'X', 'Y', 'Z'],
         domainFn: (dynamic datum, __) => datum,
-        measureFn: (_, __) {}));
+        measureFn: (_, __) => null));
 
-    _series3 = new MutableSeries(new Series(
+    _series3 = MutableSeries(Series(
         id: 'mySeries3',
         data: ['W', 'X', 'Y', 'Z'],
         domainFn: (dynamic datum, __) => datum,
-        measureFn: (_, __) {}));
+        measureFn: (_, __) => null));
 
-    _series4 = new MutableSeries(new Series(
+    _series4 = MutableSeries(Series(
         id: 'mySeries4',
         data: ['W', 'X', 'Y', 'Z'],
         domainFn: (dynamic datum, __) => datum,
-        measureFn: (_, __) {}));
+        measureFn: (_, __) => null));
   });
 
   test('selects initial datum', () {
     _makeBehavior(infoSelectionType,
-        selectedData: [new SeriesDatumConfig('mySeries1', 'C')]);
+        selectedData: [SeriesDatumConfig('mySeries1', 'C')]);
 
     _chart.requestOnDraw([_series1, _series2]);
 
@@ -124,8 +128,8 @@ void main() {
 
   test('selects multiple initial data', () {
     _makeBehavior(infoSelectionType, selectedData: [
-      new SeriesDatumConfig('mySeries1', 'C'),
-      new SeriesDatumConfig('mySeries1', 'D')
+      SeriesDatumConfig('mySeries1', 'C'),
+      SeriesDatumConfig('mySeries1', 'D')
     ]);
 
     _chart.requestOnDraw([_series1, _series2]);
@@ -169,7 +173,7 @@ void main() {
 
   test('selects series and datum', () {
     _makeBehavior(infoSelectionType,
-        selectedData: [new SeriesDatumConfig('mySeries1', 'C')],
+        selectedData: [SeriesDatumConfig('mySeries1', 'C')],
         selectedSeries: ['mySeries4']);
 
     _chart.requestOnDraw([_series1, _series2, _series3, _series4]);
@@ -198,11 +202,11 @@ void main() {
     // Request a draw with a new series list.
     _chart.draw(
       [
-        new Series(
+        Series(
             id: 'mySeries2',
             data: ['W', 'X', 'Y', 'Z'],
             domainFn: (dynamic datum, __) => datum,
-            measureFn: (_, __) {})
+            measureFn: (_, __) => null)
       ],
     );
 

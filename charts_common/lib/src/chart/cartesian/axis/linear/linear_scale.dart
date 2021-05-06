@@ -49,50 +49,53 @@ import 'linear_scale_viewport.dart' show LinearScaleViewportSettings;
 class LinearScale implements NumericScale {
   final LinearScaleDomainInfo _domainInfo;
   final LinearScaleViewportSettings _viewportSettings;
-  final LinearScaleFunction _scaleFunction = new LinearScaleFunction();
+  final LinearScaleFunction _scaleFunction = LinearScaleFunction();
 
+  @override
   RangeBandConfig rangeBandConfig = const RangeBandConfig.none();
+
+  @override
   StepSizeConfig stepSizeConfig = const StepSizeConfig.auto();
 
   bool _scaleReady = false;
 
   LinearScale()
-      : _domainInfo = new LinearScaleDomainInfo(),
-        _viewportSettings = new LinearScaleViewportSettings();
+      : _domainInfo = LinearScaleDomainInfo(),
+        _viewportSettings = LinearScaleViewportSettings();
 
   LinearScale._copy(LinearScale other)
-      : _domainInfo = new LinearScaleDomainInfo.copy(other._domainInfo),
+      : _domainInfo = LinearScaleDomainInfo.copy(other._domainInfo),
         _viewportSettings =
-            new LinearScaleViewportSettings.copy(other._viewportSettings),
+            LinearScaleViewportSettings.copy(other._viewportSettings),
         rangeBandConfig = other.rangeBandConfig,
         stepSizeConfig = other.stepSizeConfig;
 
   @override
-  LinearScale copy() => new LinearScale._copy(this);
+  LinearScale copy() => LinearScale._copy(this);
 
   //
   // Domain methods
   //
 
   @override
-  addDomain(num domainValue) {
+  void addDomain(num domainValue) {
     _domainInfo.addDomainValue(domainValue);
   }
 
   @override
-  resetDomain() {
+  void resetDomain() {
     _scaleReady = false;
     _domainInfo.reset();
   }
 
   @override
-  resetViewportSettings() {
+  void resetViewportSettings() {
     _viewportSettings.reset();
   }
 
   @override
-  NumericExtents get dataExtent => new NumericExtents(
-      _domainInfo.dataDomainStart, _domainInfo.dataDomainEnd);
+  NumericExtents get dataExtent =>
+      NumericExtents(_domainInfo.dataDomainStart, _domainInfo.dataDomainEnd);
 
   @override
   num get minimumDomainStep => _domainInfo.minimumDetectedDomainStep;
@@ -105,13 +108,13 @@ class LinearScale implements NumericScale {
     _domainInfo.domainOverride = domainMaxExtent;
   }
 
-  get domainOverride => _domainInfo.domainOverride;
+  @override
+  NumericExtents get domainOverride => _domainInfo.domainOverride;
 
   @override
   int compareDomainValueToViewport(num domainValue) {
-    NumericExtents dataExtent = _viewportSettings.domainExtent != null
-        ? _viewportSettings.domainExtent
-        : _domainInfo.extent;
+    NumericExtents dataExtent =
+        _viewportSettings.domainExtent ?? _domainInfo.extent;
     return dataExtent.compareValue(domainValue);
   }
 
@@ -120,7 +123,7 @@ class LinearScale implements NumericScale {
   //
 
   @override
-  setViewportSettings(double viewportScale, double viewportTranslatePx) {
+  void setViewportSettings(double viewportScale, double viewportTranslatePx) {
     _viewportSettings
       ..scalingFactor = viewportScale
       ..translatePx = viewportTranslatePx
@@ -211,7 +214,7 @@ class LinearScale implements NumericScale {
   // Private update
   //
 
-  _configureScale() {
+  void _configureScale() {
     if (_scaleReady) return;
 
     assert(_viewportSettings.range != null);

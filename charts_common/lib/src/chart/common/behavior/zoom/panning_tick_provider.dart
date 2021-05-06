@@ -52,6 +52,7 @@ class PanningTickProvider<D> implements TickProvider<D> {
     _mode = mode;
   }
 
+  @override
   List<Tick<D>> getTicks({
     @required ChartContext context,
     @required GraphicsFactory graphicsFactory,
@@ -64,7 +65,7 @@ class PanningTickProvider<D> implements TickProvider<D> {
     TickHint<D> tickHint,
   }) {
     if (_mode == PanningTickProviderMode.stepSizeLocked) {
-      tickHint = new TickHint(
+      tickHint = TickHint(
         _ticks.first.value,
         _ticks.last.value,
         tickCount: _ticks.length,

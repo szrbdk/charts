@@ -74,19 +74,19 @@ class BucketingAxisSpec extends NumericAxisSpec {
     bool showBucket,
     this.threshold,
     NumericExtents viewport,
-  })  : this.showBucket = showBucket ?? true,
+  })  : showBucket = showBucket ?? true,
         super(
             renderSpec: renderSpec,
             tickProviderSpec:
                 tickProviderSpec ?? const BucketingNumericTickProviderSpec(),
             tickFormatterSpec: tickFormatterSpec ??
-                new BasicNumericTickFormatterSpec.fromNumberFormat(
-                    new NumberFormat.percentPattern()),
+                BasicNumericTickFormatterSpec.fromNumberFormat(
+                    NumberFormat.percentPattern()),
             showAxisLine: showAxisLine,
             viewport: viewport ?? const NumericExtents(0.0, 1.0));
 
   @override
-  configure(
+  void configure(
       Axis<num> axis, ChartContext context, GraphicsFactory graphicsFactory) {
     super.configure(axis, context, graphicsFactory);
 
@@ -104,7 +104,7 @@ class BucketingAxisSpec extends NumericAxisSpec {
   }
 
   @override
-  BucketingNumericAxis createAxis() => new BucketingNumericAxis();
+  BucketingNumericAxis createAxis() => BucketingNumericAxis();
 
   @override
   bool operator ==(Object other) =>
@@ -112,7 +112,7 @@ class BucketingAxisSpec extends NumericAxisSpec {
       (other is BucketingAxisSpec &&
           showBucket == other.showBucket &&
           threshold == other.threshold &&
-          super == (other));
+          super == other);
 
   @override
   int get hashCode {
@@ -155,7 +155,7 @@ class BucketingNumericTickProviderSpec extends BasicNumericTickProviderSpec {
 
   @override
   BucketingNumericTickProvider createTickProvider(ChartContext context) {
-    final provider = new BucketingNumericTickProvider()
+    final provider = BucketingNumericTickProvider()
       ..zeroBound = zeroBound
       ..dataIsInWholeNumbers = dataIsInWholeNumbers;
 

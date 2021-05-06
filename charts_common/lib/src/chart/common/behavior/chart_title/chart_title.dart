@@ -29,6 +29,7 @@ import '../../../layout/layout_view.dart'
         LayoutView,
         LayoutViewConfig,
         LayoutViewPaintOrder,
+        layoutPosition,
         LayoutViewPositionOrder,
         ViewMeasuredSizes;
 import '../../base_chart.dart' show BaseChart, LifecycleListener;
@@ -47,9 +48,9 @@ class ChartTitle<D> implements ChartBehavior<D> {
   static const _defaultTitleDirection = ChartTitleDirection.auto;
   static const _defaultTitleOutsideJustification = OutsideJustification.middle;
   static final _defaultTitleStyle =
-      new TextStyleSpec(fontSize: 18, color: StyleFactory.style.tickColor);
+      TextStyleSpec(fontSize: 18, color: StyleFactory.style.tickColor);
   static final _defaultSubTitleStyle =
-      new TextStyleSpec(fontSize: 14, color: StyleFactory.style.tickColor);
+      TextStyleSpec(fontSize: 14, color: StyleFactory.style.tickColor);
   static const _defaultInnerPadding = 10;
   static const _defaultTitlePadding = 18;
   static const _defaultOuterPadding = 10;
@@ -79,7 +80,7 @@ class ChartTitle<D> implements ChartBehavior<D> {
       TextStyleSpec titleStyleSpec,
       String subTitle,
       TextStyleSpec subTitleStyleSpec}) {
-    _config = new _ChartTitleConfig()
+    _config = _ChartTitleConfig()
       ..behaviorPosition = behaviorPosition ?? _defaultBehaviorPosition
       ..innerPadding = innerPadding ?? _defaultInnerPadding
       ..layoutMinSize = layoutMinSize
@@ -96,7 +97,7 @@ class ChartTitle<D> implements ChartBehavior<D> {
       ..subTitleStyleSpec = subTitleStyleSpec ?? _defaultSubTitleStyle;
 
     _lifecycleListener =
-        new LifecycleListener<D>(onAxisConfigured: _updateViewData);
+        LifecycleListener<D>(onAxisConfigured: _updateViewData);
   }
 
   /// Layout position for the title.
@@ -228,7 +229,7 @@ class ChartTitle<D> implements ChartBehavior<D> {
   void attachTo(BaseChart<D> chart) {
     _chart = chart;
 
-    _view = new _ChartTitleLayoutView<D>(
+    _view = _ChartTitleLayoutView<D>(
         layoutPaintOrder: LayoutViewPaintOrder.chartTitle,
         config: _config,
         chart: _chart);
@@ -258,6 +259,7 @@ class ChartTitle<D> implements ChartBehavior<D> {
 class _ChartTitleLayoutView<D> extends LayoutView {
   LayoutViewConfig _layoutConfig;
 
+  @override
   LayoutViewConfig get layoutConfig => _layoutConfig;
 
   /// Stores all of the configured properties of the behavior.
@@ -270,7 +272,8 @@ class _ChartTitleLayoutView<D> extends LayoutView {
   Rectangle<int> _componentBounds;
   Rectangle<int> _drawAreaBounds;
 
-  GraphicsFactory _graphicsFactory;
+  @override
+  GraphicsFactory graphicsFactory;
 
   /// Cached layout element for the title text.
   ///
@@ -290,20 +293,12 @@ class _ChartTitleLayoutView<D> extends LayoutView {
       {@required int layoutPaintOrder,
       @required _ChartTitleConfig config,
       @required this.chart})
-      : this._config = config {
+      : _config = config {
     // Set inside body to resolve [_layoutPosition].
-    _layoutConfig = new LayoutViewConfig(
+    _layoutConfig = LayoutViewConfig(
         paintOrder: layoutPaintOrder,
         position: _layoutPosition,
         positionOrder: LayoutViewPositionOrder.chartTitle);
-  }
-
-  @override
-  GraphicsFactory get graphicsFactory => _graphicsFactory;
-
-  @override
-  set graphicsFactory(GraphicsFactory value) {
-    _graphicsFactory = value;
   }
 
   /// Sets the configuration for the title behavior.
@@ -415,7 +410,7 @@ class _ChartTitleLayoutView<D> extends LayoutView {
     // Reset the cached text elements used during the paint step.
     _resetTextElementCache();
 
-    return new ViewMeasuredSizes(
+    return ViewMeasuredSizes(
         minWidth: minWidth,
         minHeight: minHeight,
         preferredWidth: preferredWidth,
@@ -424,8 +419,8 @@ class _ChartTitleLayoutView<D> extends LayoutView {
 
   @override
   void layout(Rectangle<int> componentBounds, Rectangle<int> drawAreaBounds) {
-    this._componentBounds = componentBounds;
-    this._drawAreaBounds = drawAreaBounds;
+    _componentBounds = componentBounds;
+    _drawAreaBounds = drawAreaBounds;
 
     // Reset the cached text elements used during the paint step.
     _resetTextElementCache();
@@ -561,51 +556,8 @@ class _ChartTitleLayoutView<D> extends LayoutView {
 
   /// Get layout position from chart title position.
   LayoutPosition get _layoutPosition {
-    LayoutPosition position;
-    switch (_config.behaviorPosition) {
-      case BehaviorPosition.bottom:
-        position = LayoutPosition.Bottom;
-        break;
-      case BehaviorPosition.end:
-        position = isRtl ? LayoutPosition.Left : LayoutPosition.Right;
-        break;
-      case BehaviorPosition.inside:
-        position = LayoutPosition.DrawArea;
-        break;
-      case BehaviorPosition.start:
-        position = isRtl ? LayoutPosition.Right : LayoutPosition.Left;
-        break;
-      case BehaviorPosition.top:
-        position = LayoutPosition.Top;
-        break;
-    }
-
-    // If we have a "full" [OutsideJustification], convert the layout position
-    // to the "full" form.
-    if (_config.titleOutsideJustification == OutsideJustification.start ||
-        _config.titleOutsideJustification == OutsideJustification.middle ||
-        _config.titleOutsideJustification == OutsideJustification.end) {
-      switch (position) {
-        case LayoutPosition.Bottom:
-          position = LayoutPosition.FullBottom;
-          break;
-        case LayoutPosition.Left:
-          position = LayoutPosition.FullLeft;
-          break;
-        case LayoutPosition.Top:
-          position = LayoutPosition.FullTop;
-          break;
-        case LayoutPosition.Right:
-          position = LayoutPosition.FullRight;
-          break;
-
-        // Ignore other positions, like DrawArea.
-        default:
-          break;
-      }
-    }
-
-    return position;
+    return layoutPosition(
+        _config.behaviorPosition, _config.titleOutsideJustification, isRtl);
   }
 
   /// Gets the resolved location for a label element.
@@ -698,8 +650,8 @@ class _ChartTitleLayoutView<D> extends LayoutView {
       var padding = 0.0 + _config.innerPadding;
       if (isPrimaryTitle) {
         padding +=
-            ((subTitleHeight > 0 ? _config.titlePadding + subTitleHeight : 0) +
-                titleHeight);
+            (subTitleHeight > 0 ? _config.titlePadding + subTitleHeight : 0) +
+                titleHeight;
       } else {
         padding += subTitleHeight;
       }
@@ -707,7 +659,7 @@ class _ChartTitleLayoutView<D> extends LayoutView {
       labelY = (bounds.bottom - padding).round();
     }
 
-    return new Point<int>(labelX, labelY);
+    return Point<int>(labelX, labelY);
   }
 
   /// Gets the resolved location for a title in the left or right margin.
@@ -780,7 +732,7 @@ class _ChartTitleLayoutView<D> extends LayoutView {
       labelX = (bounds.right - padding).round();
     }
 
-    return new Point<int>(labelX, labelY);
+    return Point<int>(labelX, labelY);
   }
 
   // Helper function that converts [TextStyleSpec] to [TextStyle].
@@ -794,7 +746,7 @@ class _ChartTitleLayoutView<D> extends LayoutView {
   }
 
   @override
-  Rectangle<int> get componentBounds => this._drawAreaBounds;
+  Rectangle<int> get componentBounds => _drawAreaBounds;
 
   @override
   bool get isSeriesRenderer => false;

@@ -1,4 +1,4 @@
-// Copyright 2018 the Charts project authors. Please see the AUTHORS file
+// Copyright 2019 the Charts project authors. Please see the AUTHORS file
 // for details.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:collection' show LinkedHashMap, Queue;
+import 'dart:collection' show Queue;
 import 'dart:math' show MutableRectangle, Point, Rectangle, min;
 
 import 'package:charts_common/src/chart/common/base_chart.dart';
@@ -43,11 +43,11 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
 
   /// A hash map that allows accessing the renderer element drawn on the chart
   /// from a treemap node.
-  final _treeNodeToRendererElement =
-      LinkedHashMap<TreeNode, TreeMapRendererElement<D>>();
+  final _treeNodeToRendererElement = <TreeNode, TreeMapRendererElement<D>>{};
 
-  /// A list of [_AnimatedTreeMapRect] that will get drawn on the canvas.
-  final _animatedTreeMapRects = <_AnimatedTreeMapRect<D>>[];
+  /// An ordered map of [_AnimatedTreeMapRect] that will get drawn on the
+  /// canvas.
+  final _animatedTreeMapRects = <D, _AnimatedTreeMapRect<D>>{};
 
   /// Renderer configuration.
   final TreeMapRendererConfig<D> config;
@@ -89,13 +89,13 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
     // entry is expected to be the root.
     _treeNodeToRendererElement.clear();
 
-    for (var series in seriesList) {
+    for (final series in seriesList) {
       final count = series.data.length;
 
       // Populates [treeNodeToRendererElement] map entries.
       for (var i = 0; i < count; i++) {
         final TreeNode node = series.data[i];
-        _treeNodeToRendererElement[node] = _asTreeMapRendererElement(series, i)
+        _treeNodeToRendererElement[node] = _createRendererElement(series, i)
           ..isLeaf = !node.hasChildren;
       }
       series.setAttr(treeMapElementsKey, _treeNodeToRendererElement.values);
@@ -110,40 +110,38 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
     // _visibleTreeMapRectKeys is used to remove any [_AnimatedTreeMapRect]s
     // that were rendered in the previous draw cycles, but no longer have a
     // corresponding datum in the new series data.
-    final _visibleTreeMapRectKeys = Set<D>();
+    final _visibleTreeMapRectKeys = <D>{};
 
-    for (var series in seriesList) {
+    for (final series in seriesList) {
       if (series.data.isNotEmpty) {
-        final TreeNode root = series.data.first;
-
+        final root = series.data.first;
         // Configures the renderer element for root node.
         _configureRootRendererElement(root);
 
         // Applies tiling algorithm to each node.
-        for (TreeNode node in series.data) {
+        for (final TreeNode node in series.data) {
           tile(node);
-          final element = _rendererElementForTreeNode(node);
-          element.refreshPaintProperties();
-          final rect = _asAnimatedTreeMapRect(element);
+          final element = _getRendererElement(node)..refreshPaintProperties();
+          final rect = _createAnimatedTreeMapRect(element);
           _visibleTreeMapRectKeys.add(rect.key);
         }
       }
     }
 
-    for (var rect in _animatedTreeMapRects) {
+    _animatedTreeMapRects.forEach((_, rect) {
       if (!_visibleTreeMapRectKeys.contains(rect.key)) {
         rect.animateOut();
       }
-    }
+    });
   }
 
   @override
   void paint(ChartCanvas canvas, double animationPercent) {
     if (animationPercent == 1.0) {
-      _animatedTreeMapRects.removeWhere((rect) => rect.animatingOut);
+      _animatedTreeMapRects.removeWhere((_, rect) => rect.animatingOut);
     }
 
-    for (var animatedRect in _animatedTreeMapRects) {
+    _animatedTreeMapRects.forEach((_, animatedRect) {
       final element = animatedRect.getCurrentRect(animationPercent);
       final rect = element.boundingRect;
 
@@ -170,14 +168,20 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
           animationPercent: animationPercent,
           rtl: isRtl,
           // only leaf node could possibly render label vertically.
-          renderVertically: element.isLeaf && rect.width < rect.height);
-    }
+          renderVertically: element.isLeaf && rect.width < rect.height,
+          renderMultiline: element.isLeaf);
+    });
   }
 
   /// Datum details of nearest rectangles in the treemap.
   @override
   List<DatumDetails<D>> getNearestDatumDetailPerSeries(
-      Point<double> chartPoint, bool byDomain, Rectangle<int> boundsOverride) {
+    Point<double> chartPoint,
+    bool byDomain,
+    Rectangle<int> boundsOverride, {
+    bool selectOverlappingPoints = false,
+    bool selectExactEventLocation = false,
+  }) {
     final nearest = <DatumDetails<D>>[];
 
     // Checks if the [chartPoint] is within bounds.
@@ -188,7 +192,8 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
 
     while (queue.isNotEmpty) {
       final node = queue.removeFirst();
-      final element = _rendererElementForTreeNode(node);
+      final element = _getRendererElement(node);
+
       if (element.boundingRect.containsPoint(chartPoint)) {
         nearest.add(DatumDetails<D>(
           index: element.index,
@@ -199,9 +204,11 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
           domainDistance: 0.0,
           measureDistance: 0.0,
         ));
+        // No need to verify remaining siblings.
+        queue.clear();
 
-        // Only processes children of this node since parent node contains
-        // the child rectangles in the treemap.
+        // Only processes nodes whose parents contain the [chartPoint].
+        // This reduces the number of nodes to verify.
         queue.addAll(node.children);
       }
     }
@@ -214,7 +221,7 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
   @override
   DatumDetails<D> addPositionToDetailsForSeriesDatum(
       DatumDetails<D> details, SeriesDatum<D> seriesDatum) {
-    final bounds = _rendererElementForTreeNode(seriesDatum.datum).boundingRect;
+    final bounds = _getRendererElement(seriesDatum.datum).boundingRect;
     final chartPosition = Point<double>(
         (isRtl ? bounds.left : bounds.right).toDouble(),
         (bounds.top + (bounds.height / 2)).toDouble());
@@ -225,19 +232,17 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
   ///
   /// Assigned color is based on the depth of each node.
   @override
-  assignMissingColors(Iterable<MutableSeries<D>> seriesList,
+  void assignMissingColors(Iterable<MutableSeries<D>> seriesList,
       {@required bool emptyCategoryUsesSinglePalette}) {
-    for (var series in seriesList) {
+    for (final series in seriesList) {
       final colorPalettes =
           StyleFactory.style.getOrderedPalettes(series.data.length);
       final count = colorPalettes.length;
 
-      if (series.fillColorFn == null) {
-        series.fillColorFn = (int index) {
-          TreeNode node = series.data[index];
-          return colorPalettes[node.depth % count].shadeDefault;
-        };
-      }
+      series.fillColorFn ??= (int index) {
+        TreeNode node = series.data[index];
+        return colorPalettes[node.depth % count].shadeDefault;
+      };
 
       // Pattern color and stroke color defaults to the default config stroke
       // color if no accessor is provided.
@@ -250,10 +255,8 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
   /// functions are not set.
   @protected
   void assignMissingStrokeWidths(Iterable<MutableSeries<D>> seriesList) {
-    for (var series in seriesList) {
-      if (series.strokeWidthPxFn == null) {
-        series.strokeWidthPxFn = (_) => config.strokeWidthPx;
-      }
+    for (final series in seriesList) {
+      series.strokeWidthPxFn ??= (_) => config.strokeWidthPx;
     }
   }
 
@@ -263,7 +266,7 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
   /// Available bounding rectangle is computed after padding is applied.
   @protected
   MutableRectangle availableLayoutBoundingRect(TreeNode node) {
-    final element = _rendererElementForTreeNode(node);
+    final element = _getRendererElement(node);
     final rect = element.boundingRect;
     final padding = config.rectPaddingPx;
 
@@ -290,8 +293,8 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
   /// the measure which the available layout area represents.
   @protected
   void scaleArea(Iterable<TreeNode> children, num scaleFactor) {
-    for (var child in children) {
-      final element = _rendererElementForTreeNode(child);
+    for (final child in children) {
+      final element = _getRendererElement(child);
       final area = element.measure * (scaleFactor < 0 ? 0 : scaleFactor);
       element.area = area <= 0 ? 0 : area;
     }
@@ -299,8 +302,7 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
 
   /// Gets the measure for a tree [node].
   @protected
-  num measureForTreeNode(TreeNode node) =>
-      _rendererElementForTreeNode(node).measure;
+  num measureForTreeNode(TreeNode node) => _getRendererElement(node).measure;
 
   /// Gets the area of a [Rectangle].
   @protected
@@ -308,7 +310,7 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
 
   /// Gets the area for a tree [node].
   @protected
-  num areaForTreeNode(TreeNode node) => _rendererElementForTreeNode(node).area;
+  num areaForTreeNode(TreeNode node) => _getRendererElement(node).area;
 
   /// Positions each renderer element in [nodes] within the [boundingRect].
   ///
@@ -329,17 +331,17 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
       num side, num layoutArea) {
     var top = boundingRect.top;
     var left = boundingRect.left;
-    var length = side > 0 ? (layoutArea / side).round() : 0;
+    var length = side > 0 ? (layoutArea / side) : 0;
 
     // [side] is equal to the height of the boundingRect, so stacks rectangles
     // vertically. [length] is the width of the stacking rectangles.
     if (side == boundingRect.height) {
       // Truncates the length since it is out of bounds.
       if (length > boundingRect.width) length = boundingRect.width.toInt();
-      for (var node in nodes) {
-        final element = _rendererElementForTreeNode(node);
+      for (final node in nodes) {
+        final element = _getRendererElement(node);
         final height = min(boundingRect.top + boundingRect.height - top,
-            length > 0 ? (element.area / length).round() : 0);
+            length > 0 ? (element.area / length) : 0);
         element.boundingRect = Rectangle(left, top, length, height);
         top += height;
       }
@@ -348,10 +350,10 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
     } else {
       // Positions rectangles horizontally.
       if (length > boundingRect.height) length = boundingRect.height.toInt();
-      for (var node in nodes) {
-        final element = _rendererElementForTreeNode(node);
+      for (final node in nodes) {
+        final element = _getRendererElement(node);
         final width = min(boundingRect.left + boundingRect.width - left,
-            length > 0 ? (element.area / length).round() : 0);
+            length > 0 ? (element.area / length) : 0);
         element.boundingRect = Rectangle(left, top, width, length);
         left += width;
       }
@@ -362,7 +364,7 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
 
   void _configureRootRendererElement(TreeNode root) {
     // Root should take up the entire [drawBounds] area.
-    _rendererElementForTreeNode(root)
+    _getRendererElement(root)
       ..boundingRect = drawBounds
       ..area = areaForRectangle(drawBounds);
   }
@@ -371,26 +373,25 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
   ///
   /// This object contains previous, current, and target animation state of
   /// treemap renderer [element].
-  _AnimatedTreeMapRect<D> _asAnimatedTreeMapRect(
+  _AnimatedTreeMapRect<D> _createAnimatedTreeMapRect(
       TreeMapRendererElement<D> element) {
     final key = element.domain;
-    final index = _animatedTreeMapRects.indexWhere((rect) => rect.key == key);
     // Creates a new _AnimatedTreeMapRect if not exists. Otherwise, moves the
     // existing one to the end of the list so that the iteration order of
     // _AnimatedTreeMapRects is preserved. This is important because the order
     // of rects in _animatedTreeMapRects determines the painting order.
-    final rect = index == -1
-        ? _AnimatedTreeMapRect<D>(key: key)
-        : _animatedTreeMapRects.removeAt(index);
+    final rect = _animatedTreeMapRects.containsKey(key)
+        ? _animatedTreeMapRects.remove(key)
+        : _AnimatedTreeMapRect<D>(key: key);
 
-    _animatedTreeMapRects.add(rect);
+    _animatedTreeMapRects[key] = rect;
     return rect..setNewTarget(element);
   }
 
   /// Creates a basic [TreeMapRendererElement].
   ///
   /// `boundingRect` and `area` are set after tile function is applied.
-  TreeMapRendererElement<D> _asTreeMapRendererElement(
+  TreeMapRendererElement<D> _createRendererElement(
           MutableSeries<D> series, int index) =>
       TreeMapRendererElement<D>()
         ..domain = series.domainFn(index)
@@ -398,7 +399,7 @@ abstract class BaseTreeMapRenderer<D> extends BaseSeriesRenderer<D> {
         ..index = index
         ..series = series;
 
-  TreeMapRendererElement<D> _rendererElementForTreeNode(TreeNode node) {
+  TreeMapRendererElement<D> _getRendererElement(TreeNode node) {
     final element = _treeNodeToRendererElement[node];
     assert(
         element != null, 'There is no associated renderer element for $node.');
@@ -446,7 +447,7 @@ class _AnimatedTreeMapRect<D> {
 
   void setNewTarget(TreeMapRendererElement<D> newTarget) {
     animatingOut = false;
-    // Only when [crrentRect] is null, [currentRect] should be [newTarget].
+    // Only when [currentRect] is null, [currentRect] should be [newTarget].
     _currentRect ??= newTarget.clone();
     _previousRect = _currentRect.clone();
     _targetRect = newTarget;

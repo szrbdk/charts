@@ -39,10 +39,10 @@ class ArcLabelDecorator<D> extends ArcRendererDecorator<D> {
   static const _defaultLabelPosition = ArcLabelPosition.auto;
   static const _defaultLabelPadding = 5;
   static final _defaultInsideLabelStyle =
-      new TextStyleSpec(fontSize: 12, color: Color.white);
+      TextStyleSpec(fontSize: 12, color: Color.white);
   static final _defaultOutsideLabelStyle =
-      new TextStyleSpec(fontSize: 12, color: Color.black);
-  static final _defaultLeaderLineStyle = new ArcLabelLeaderLineStyleSpec(
+      TextStyleSpec(fontSize: 12, color: Color.black);
+  static final _defaultLeaderLineStyle = ArcLabelLeaderLineStyleSpec(
       length: 20.0,
       thickness: 1.0,
       color: StyleFactory.style.arcLabelOutsideLeaderLine);
@@ -68,6 +68,7 @@ class ArcLabelDecorator<D> extends ArcRendererDecorator<D> {
   final bool showLeaderLines;
 
   /// Render the labels on top of series data.
+  @override
   final bool renderAbove = true;
 
   ArcLabelDecorator(
@@ -136,23 +137,23 @@ class ArcLabelDecorator<D> extends ArcRendererDecorator<D> {
       final centerRadius = arcElements.innerRadius +
           ((arcElements.radius - arcElements.innerRadius) / 2);
 
-      final innerPoint = new Point<double>(
+      final innerPoint = Point<double>(
           arcElements.center.x + arcElements.innerRadius * cos(centerAngle),
           arcElements.center.y + arcElements.innerRadius * sin(centerAngle));
 
-      final outerPoint = new Point<double>(
+      final outerPoint = Point<double>(
           arcElements.center.x + arcElements.radius * cos(centerAngle),
           arcElements.center.y + arcElements.radius * sin(centerAngle));
 
       //final bounds = element.bounds;
-      final bounds = new Rectangle<double>.fromPoints(innerPoint, outerPoint);
+      final bounds = Rectangle<double>.fromPoints(innerPoint, outerPoint);
 
       // Get space available inside and outside the arc.
       final totalPadding = labelPadding * 2;
-      final insideArcWidth = (min(
+      final insideArcWidth = min(
               (((arcAngle * 180 / pi) / 360) * (2 * pi * centerRadius)).round(),
               (arcElements.radius - arcElements.innerRadius) - labelPadding)
-          .round());
+          .round();
 
       final leaderLineLength = showLeaderLines ? leaderLineStyleSpec.length : 0;
 
@@ -269,7 +270,7 @@ class ArcLabelDecorator<D> extends ArcRendererDecorator<D> {
       bool previousLabelLeftOfChart) {
     final labelRadius = arcElements.radius + leaderLineStyleSpec.length / 2;
 
-    final labelPoint = new Point<double>(
+    final labelPoint = Point<double>(
         arcElements.center.x + labelRadius * cos(centerAngle),
         arcElements.center.y + labelRadius * sin(centerAngle));
 
@@ -348,10 +349,10 @@ class ArcLabelDecorator<D> extends ArcRendererDecorator<D> {
     final tailX = (labelLeftOfChart ? -1 : 1) * leaderLineStyleSpec.length;
 
     final leaderLineTailPoint =
-        new Point<double>(labelPoint.x + tailX, labelPoint.y);
+        Point<double>(labelPoint.x + tailX, labelPoint.y);
 
     final centerRadius = radius - leaderLineStyleSpec.length / 2;
-    final leaderLineStartPoint = new Point<double>(
+    final leaderLineStartPoint = Point<double>(
         arcCenterPoint.x + centerRadius * cos(centerAngle),
         arcCenterPoint.y + centerRadius * sin(centerAngle));
 

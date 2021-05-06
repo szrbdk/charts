@@ -26,12 +26,20 @@ import 'legend_entry_generator.dart';
 ///
 /// [D] the domain class type for the datum.
 class PerDatumLegendEntryGenerator<D> implements LegendEntryGenerator<D> {
+  @override
   TextStyleSpec entryTextStyle;
+
+  @override
   MeasureFormatter measureFormatter;
+
+  @override
   MeasureFormatter secondaryMeasureFormatter;
+
+  @override
   bool showOverlaySeries;
 
   /// Option for showing measures when there is no selection.
+  @override
   LegendDefaultMeasure legendDefaultMeasure;
 
   @override
@@ -40,8 +48,7 @@ class PerDatumLegendEntryGenerator<D> implements LegendEntryGenerator<D> {
 
     final series = seriesList[0];
     for (var i = 0; i < series.data.length; i++) {
-      legendEntries.add(new LegendEntry<D>(
-          series, series.domainFn(i).toString(),
+      legendEntries.add(LegendEntry<D>(series, series.domainFn(i).toString(),
           color: series.colorFn(i),
           datum: series.data[i],
           datumIndex: i,

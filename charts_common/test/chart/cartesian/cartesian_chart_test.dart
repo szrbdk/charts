@@ -18,6 +18,7 @@ import 'package:charts_common/src/chart/cartesian/axis/spec/date_time_axis_spec.
 import 'package:charts_common/src/chart/cartesian/axis/spec/ordinal_axis_spec.dart';
 import 'package:charts_common/src/chart/cartesian/axis/spec/numeric_axis_spec.dart';
 import 'package:charts_common/src/chart/common/chart_context.dart';
+import 'package:charts_common/src/common/date_time_factory.dart';
 import 'package:charts_common/src/chart/time_series/time_series_chart.dart';
 import 'package:charts_common/src/common/graphics_factory.dart';
 
@@ -30,8 +31,8 @@ class MockGraphicsFactory extends Mock implements GraphicsFactory {}
 
 class FakeNumericChart extends NumericCartesianChart {
   FakeNumericChart() {
-    context = new MockContext();
-    graphicsFactory = new MockGraphicsFactory();
+    context = MockContext();
+    graphicsFactory = MockGraphicsFactory();
   }
 
   @override
@@ -42,8 +43,8 @@ class FakeNumericChart extends NumericCartesianChart {
 
 class FakeOrdinalChart extends OrdinalCartesianChart {
   FakeOrdinalChart() {
-    context = new MockContext();
-    graphicsFactory = new MockGraphicsFactory();
+    context = MockContext();
+    graphicsFactory = MockGraphicsFactory();
   }
 
   @override
@@ -53,9 +54,9 @@ class FakeOrdinalChart extends OrdinalCartesianChart {
 }
 
 class FakeTimeSeries extends TimeSeriesChart {
-  FakeTimeSeries() {
-    context = new MockContext();
-    graphicsFactory = new MockGraphicsFactory();
+  FakeTimeSeries() : super(dateTimeFactory: const LocalDateTimeFactory()) {
+    context = MockContext();
+    graphicsFactory = MockGraphicsFactory();
   }
 
   @override
@@ -67,36 +68,36 @@ class FakeTimeSeries extends TimeSeriesChart {
 void main() {
   group('Axis reset with new axis spec', () {
     test('for ordinal chart', () {
-      final chart = new FakeOrdinalChart();
+      final chart = FakeOrdinalChart();
       chart.configurationChanged();
       final domainAxis = chart.domainAxis;
       expect(domainAxis, isNotNull);
 
-      chart.domainAxisSpec = new OrdinalAxisSpec();
+      chart.domainAxisSpec = OrdinalAxisSpec();
       chart.configurationChanged();
 
       expect(domainAxis, isNot(chart.domainAxis));
     });
 
     test('for numeric chart', () {
-      final chart = new FakeNumericChart();
+      final chart = FakeNumericChart();
       chart.configurationChanged();
       final domainAxis = chart.domainAxis;
       expect(domainAxis, isNotNull);
 
-      chart.domainAxisSpec = new NumericAxisSpec();
+      chart.domainAxisSpec = NumericAxisSpec();
       chart.configurationChanged();
 
       expect(domainAxis, isNot(chart.domainAxis));
     });
 
     test('for time series chart', () {
-      final chart = new FakeTimeSeries();
+      final chart = FakeTimeSeries();
       chart.configurationChanged();
       final domainAxis = chart.domainAxis;
       expect(domainAxis, isNotNull);
 
-      chart.domainAxisSpec = new DateTimeAxisSpec();
+      chart.domainAxisSpec = DateTimeAxisSpec();
       chart.configurationChanged();
 
       expect(domainAxis, isNot(chart.domainAxis));

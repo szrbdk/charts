@@ -51,13 +51,16 @@ import 'symbol_annotation_renderer_config.dart'
 class SymbolAnnotationRenderer<D> extends PointRenderer<D>
     implements LayoutView {
   Rectangle<int> _componentBounds;
-  GraphicsFactory _graphicsFactory;
+
+  @override
+  GraphicsFactory graphicsFactory;
 
   CartesianChart<D> _chart;
 
   var _currentHeight = 0;
 
-  final _seriesInfo = new LinkedHashMap<String, _SeriesInfo<D>>();
+  // ignore: prefer_collection_literals, https://github.com/dart-lang/linter/issues/1649
+  final _seriesInfo = LinkedHashMap<String, _SeriesInfo<D>>();
 
   SymbolAnnotationRenderer(
       {String rendererId, SymbolAnnotationRendererConfig config})
@@ -73,7 +76,7 @@ class SymbolAnnotationRenderer<D> extends PointRenderer<D>
 
   @override
   void preprocessSeries(List<MutableSeries<D>> seriesList) {
-    var localConfig = (config as SymbolAnnotationRendererConfig);
+    var localConfig = config as SymbolAnnotationRendererConfig;
 
     _seriesInfo.clear();
 
@@ -117,7 +120,7 @@ class SymbolAnnotationRenderer<D> extends PointRenderer<D>
               '${series.domainLowerBoundFn(index)}__'
               '${series.domainUpperBoundFn(index)}';
 
-      _seriesInfo[seriesKey] = new _SeriesInfo<D>(
+      _seriesInfo[seriesKey] = _SeriesInfo<D>(
         rowHeight: rowHeight,
         rowStart: offset,
         symbolCenter: symbolCenter,
@@ -165,7 +168,7 @@ class SymbolAnnotationRenderer<D> extends PointRenderer<D>
     final measureUpperBoundPosition =
         domainUpperBoundPosition != null ? measurePosition : null;
 
-    return new DatumPoint<D>(
+    return DatumPoint<D>(
         datum: datum,
         domain: domainValue,
         series: series,
@@ -180,7 +183,7 @@ class SymbolAnnotationRenderer<D> extends PointRenderer<D>
   @override
   void onAttach(BaseChart<D> chart) {
     if (!(chart is CartesianChart)) {
-      throw new ArgumentError(
+      throw ArgumentError(
           'SymbolAnnotationRenderer can only be attached to a CartesianChart');
     }
 
@@ -211,20 +214,12 @@ class SymbolAnnotationRenderer<D> extends PointRenderer<D>
         final y = componentBounds.top + seriesInfo.rowStart;
 
         final domainAxis = _chart.domainAxis;
-        final bounds = new Rectangle<int>(
+        final bounds = Rectangle<int>(
             componentBounds.left, y.round(), componentBounds.width, 0);
         domainAxis.tickDrawStrategy
             .drawAxisLine(canvas, domainAxis.axisOrientation, bounds);
       });
     }
-  }
-
-  @override
-  GraphicsFactory get graphicsFactory => _graphicsFactory;
-
-  @override
-  set graphicsFactory(GraphicsFactory value) {
-    _graphicsFactory = value;
   }
 
   //
@@ -233,7 +228,7 @@ class SymbolAnnotationRenderer<D> extends PointRenderer<D>
 
   @override
   LayoutViewConfig get layoutConfig {
-    return new LayoutViewConfig(
+    return LayoutViewConfig(
         paintOrder: LayoutViewPaintOrder.point,
         position: LayoutPosition.Bottom,
         positionOrder: LayoutViewPositionOrder.symbolAnnotation);
@@ -244,7 +239,7 @@ class SymbolAnnotationRenderer<D> extends PointRenderer<D>
     // The sizing of component is not flexible. It's height is always a multiple
     // of the number of series rendered, even if that ends up taking all of the
     // available margin space.
-    return new ViewMeasuredSizes(
+    return ViewMeasuredSizes(
         preferredWidth: maxWidth, preferredHeight: _currentHeight);
   }
 

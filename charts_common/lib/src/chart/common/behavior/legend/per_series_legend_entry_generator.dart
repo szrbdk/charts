@@ -28,19 +28,27 @@ import 'legend_entry_generator.dart';
 ///
 /// [D] the domain class type for the datum.
 class PerSeriesLegendEntryGenerator<D> implements LegendEntryGenerator<D> {
+  @override
   TextStyleSpec entryTextStyle;
+
+  @override
   MeasureFormatter measureFormatter;
+
+  @override
   MeasureFormatter secondaryMeasureFormatter;
-  bool showOverlaySeries = false; // Defaults to false.
+
+  @override
+  bool showOverlaySeries = false;
 
   /// Option for showing measures when there is no selection.
+  @override
   LegendDefaultMeasure legendDefaultMeasure;
 
   @override
   List<LegendEntry<D>> getLegendEntries(List<MutableSeries<D>> seriesList) {
     final legendEntries = seriesList
         .where((series) => showOverlaySeries || !series.overlaySeries)
-        .map((series) => new LegendEntry<D>(series, series.displayName,
+        .map((series) => LegendEntry<D>(series, series.displayName,
             color: series.seriesColor, textStyle: entryTextStyle))
         .toList();
 
@@ -74,7 +82,7 @@ class PerSeriesLegendEntryGenerator<D> implements LegendEntryGenerator<D> {
     final seriesAndMeasure = <String, num>{};
 
     // Hash set of series ID's that use the secondary measure axis
-    final secondaryAxisSeriesIDs = new HashSet<String>();
+    final secondaryAxisSeriesIDs = HashSet<String>();
 
     for (SeriesDatum<D> selectedDatum in selectionModel.selectedDatum) {
       final series = selectedDatum.series;
@@ -101,6 +109,10 @@ class PerSeriesLegendEntryGenerator<D> implements LegendEntryGenerator<D> {
       entry.formattedValue = formattedValue;
       entry.isSelected = selectionModel.selectedSeries
           .any((selectedSeries) => entry.series.id == selectedSeries.id);
+
+      // Set the current selected model index for legend entry.
+      entry.selectedDataIndexes =
+          selectionModel.selectedDatum.map((datum) => datum.index).toList();
     }
   }
 
@@ -123,7 +135,7 @@ class PerSeriesLegendEntryGenerator<D> implements LegendEntryGenerator<D> {
     num getMeasureTotal(MutableSeries<D> series) {
       var measureTotal = 0.0;
       for (var i = 0; i < series.data.length; i++) {
-        measureTotal += series.measureFn(i);
+        measureTotal += series.measureFn(i) ?? 0.0;
       }
       return measureTotal;
     }

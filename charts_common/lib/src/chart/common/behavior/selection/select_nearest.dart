@@ -16,6 +16,7 @@
 import 'dart:math';
 
 import '../../../../common/gesture_listener.dart' show GestureListener;
+import '../../../../common/rate_limit_utils.dart' show throttle;
 import '../../base_chart.dart' show BaseChart;
 import '../../behavior/chart_behavior.dart' show ChartBehavior;
 import '../../datum_details.dart' show DatumDetails;
@@ -40,11 +41,9 @@ import 'selection_trigger.dart' show SelectionTrigger;
 ///   action - To select an item as an input, drill, or other selection.
 ///
 /// Other options available
-///   [expandToDomain] - All data points that match the domain value of the
-///       closest data point from each Series will be included in the selection.
-///       The selection is limited to the hovered component area unless
-///       [selectAcrossAllSeriesRendererComponents] is set to true. (Default:
-///       true)
+///   [selectionMode] - Optional mode for expanding the selection beyond the
+///       nearest datum. Defaults to selecting just the nearest datum.
+///
 ///   [selectAcrossAllSeriesRendererComponents] - Events in any component that
 ///       draw Series data will propagate to other components that draw Series
 ///       data to get a union of points that match across all series renderer
@@ -67,12 +66,9 @@ class SelectNearest<D> implements ChartBehavior<D> {
   /// Type of input event that should trigger selection.
   final SelectionTrigger eventTrigger;
 
-  /// Whether or not all data points that match the domain value of the closest
-  /// data point from each Series will be included in the selection.
-  ///
-  /// The selection is limited to the hovered component area unless
-  /// [selectAcrossAllSeriesRendererComponents] is set to true.
-  final bool expandToDomain;
+  /// Optional mode for expanding the selection beyond the nearest datum.
+  /// Defaults to selecting just the nearest datum.
+  final SelectionMode selectionMode;
 
   /// Whether or not events in any component that draw Series data will
   /// propagate to other components that draw Series data to get a union of
@@ -93,25 +89,28 @@ class SelectNearest<D> implements ChartBehavior<D> {
   /// reasonable distance. Defaults to no maximum distance.
   final int maximumDomainDistancePx;
 
+  /// Wait time in milliseconds for when the next event can be called.
+  final int hoverEventDelay;
+
   BaseChart<D> _chart;
 
   bool _delaySelect = false;
 
   SelectNearest(
       {this.selectionModelType = SelectionModelType.info,
-      this.expandToDomain = true,
+      this.selectionMode = SelectionMode.expandToDomain,
       this.selectAcrossAllSeriesRendererComponents = true,
       this.selectClosestSeries = true,
       this.eventTrigger = SelectionTrigger.hover,
-      this.maximumDomainDistancePx}) {
+      this.maximumDomainDistancePx,
+      this.hoverEventDelay}) {
     // Setup the appropriate gesture listening.
-    switch (this.eventTrigger) {
+    switch (eventTrigger) {
       case SelectionTrigger.tap:
-        _listener =
-            new GestureListener(onTapTest: _onTapTest, onTap: _onSelect);
+        _listener = GestureListener(onTapTest: _onTapTest, onTap: _onSelect);
         break;
       case SelectionTrigger.tapAndDrag:
-        _listener = new GestureListener(
+        _listener = GestureListener(
           onTapTest: _onTapTest,
           onTap: _onSelect,
           onDragStart: _onSelect,
@@ -119,7 +118,7 @@ class SelectNearest<D> implements ChartBehavior<D> {
         );
         break;
       case SelectionTrigger.pressHold:
-        _listener = new GestureListener(
+        _listener = GestureListener(
             onTapTest: _onTapTest,
             onLongPress: _onSelect,
             onDragStart: _onSelect,
@@ -127,7 +126,7 @@ class SelectNearest<D> implements ChartBehavior<D> {
             onDragEnd: _onDeselectAll);
         break;
       case SelectionTrigger.longPressHold:
-        _listener = new GestureListener(
+        _listener = GestureListener(
             onTapTest: _onTapTest,
             onLongPress: _onLongPressSelect,
             onDragStart: _onSelect,
@@ -136,7 +135,12 @@ class SelectNearest<D> implements ChartBehavior<D> {
         break;
       case SelectionTrigger.hover:
       default:
-        _listener = new GestureListener(onHover: _onSelect);
+        _listener = GestureListener(
+            onHover: hoverEventDelay == null
+                ? _onSelect
+                : throttle<Point<double>, bool>(_onSelect,
+                    delay: Duration(milliseconds: hoverEventDelay),
+                    defaultReturn: false));
         break;
     }
   }
@@ -153,10 +157,11 @@ class SelectNearest<D> implements ChartBehavior<D> {
   }
 
   bool _onSelect(Point<double> chartPoint, [double ignored]) {
+    // If _chart has not yet been attached, then quit.
+    if (_chart == null) return false;
+
     // If the selection is delayed (waiting for long press), then quit early.
-    if (_delaySelect) {
-      return false;
-    }
+    if (_delaySelect) return false;
 
     var details = _chart.getNearestDatumDetailPerSeries(
         chartPoint, selectAcrossAllSeriesRendererComponents);
@@ -169,9 +174,7 @@ class SelectNearest<D> implements ChartBehavior<D> {
 
       if (maximumDomainDistancePx == null ||
           details[0].domainDistance <= maximumDomainDistancePx) {
-        seriesDatumList = expandToDomain
-            ? _expandToDomain(details.first)
-            : [new SeriesDatum<D>(details.first.series, details.first.datum)];
+        seriesDatumList = _extractSeriesFromNearestSelection(details);
 
         // Filter out points from overlay series.
         seriesDatumList
@@ -184,7 +187,7 @@ class SelectNearest<D> implements ChartBehavior<D> {
             // copy of the list by domain distance because we do not want to
             // re-order the actual return values here.
             final sortedSeriesDatumList =
-                new List<SeriesDatum<D>>.from(seriesDatumList);
+                List<SeriesDatum<D>>.from(seriesDatumList);
             sortedSeriesDatumList.sort((a, b) =>
                 a.datum.domainDistance.compareTo(b.datum.domainDistance));
             seriesList.add(sortedSeriesDatumList.first.series);
@@ -198,6 +201,23 @@ class SelectNearest<D> implements ChartBehavior<D> {
     return _chart
         .getSelectionModel(selectionModelType)
         .updateSelection(seriesDatumList, seriesList);
+  }
+
+  List<SeriesDatum<D>> _extractSeriesFromNearestSelection(
+      List<DatumDetails<D>> details) {
+    switch (selectionMode) {
+      case SelectionMode.expandToDomain:
+        return _expandToDomain(details.first);
+      case SelectionMode.selectOverlapping:
+        return details
+            .map((datumDetails) =>
+                SeriesDatum<D>(datumDetails.series, datumDetails.datum))
+            .toList();
+      case SelectionMode.single:
+        return [SeriesDatum<D>(details.first.series, details.first.datum)];
+      default:
+        return null;
+    }
   }
 
   bool _onDeselectAll(_, __, ___) {
@@ -215,7 +235,7 @@ class SelectNearest<D> implements ChartBehavior<D> {
   List<SeriesDatum<D>> _expandToDomain(DatumDetails<D> nearestDetails) {
     // Make sure that the "nearest" datum is at the top of the list.
     final data = <SeriesDatum<D>>[
-      new SeriesDatum(nearestDetails.series, nearestDetails.datum)
+      SeriesDatum(nearestDetails.series, nearestDetails.datum)
     ];
     final nearestDomain = nearestDetails.domain;
 
@@ -236,7 +256,7 @@ class SelectNearest<D> implements ChartBehavior<D> {
         }
 
         if (domain == nearestDomain) {
-          data.add(new SeriesDatum(series, datum));
+          data.add(SeriesDatum(series, datum));
         } else if (testBounds) {
           final domainLowerBound = domainLowerBoundFn(i);
           final domainUpperBound = domainUpperBoundFn(i);
@@ -261,7 +281,7 @@ class SelectNearest<D> implements ChartBehavior<D> {
           }
 
           if (addDatum) {
-            data.add(new SeriesDatum(series, datum));
+            data.add(SeriesDatum(series, datum));
           }
         }
       }
@@ -276,7 +296,7 @@ class SelectNearest<D> implements ChartBehavior<D> {
     chart.addGestureListener(_listener);
 
     // TODO: Update this dynamically based on tappable location.
-    switch (this.eventTrigger) {
+    switch (eventTrigger) {
       case SelectionTrigger.tap:
       case SelectionTrigger.tapAndDrag:
       case SelectionTrigger.pressHold:
@@ -299,4 +319,18 @@ class SelectNearest<D> implements ChartBehavior<D> {
 
   @override
   String get role => 'SelectNearest-${selectionModelType.toString()}}';
+}
+
+/// Mode for expanding the selection beyond just the nearest datum.
+enum SelectionMode {
+  /// All data sharing the same domain value as the nearest datum will be
+  /// selected (in charts that have a concept of domain).
+  expandToDomain,
+
+  /// All data for overlapping points in a series will be selected.
+  selectOverlapping,
+
+  /// Select only the nearest datum selected by the chart. This is the default
+  /// mode.
+  single,
 }
