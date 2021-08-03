@@ -1,4 +1,3 @@
-@@ -0,0 +1,110 @@
 // Copyright 2018 the Charts project authors. Please see the AUTHORS file
 // for details.
 //
