@@ -1000,6 +1000,7 @@ class LineRenderer<D> extends BaseCartesianRenderer<D> {
                 points: line.points!.toPoints(),
                 stroke: line.color,
                 strokeWidthPx: line.strokeWidthPx,
+                smoothLine: config.smoothLine,
                 roundEndCaps: line.roundEndCaps);
           }
         });

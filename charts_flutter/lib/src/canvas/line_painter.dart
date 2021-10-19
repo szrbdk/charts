@@ -13,10 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:ui' as ui show Shader;
 import 'dart:math' show Point, Rectangle;
-import 'package:flutter/material.dart';
+import 'dart:ui' as ui show Shader;
+
 import 'package:charts_common/common.dart' as common show Color;
+import 'package:charts_flutter/src/util/monotonex.dart';
+import 'package:collection/collection.dart' show IterableExtension;
+import 'package:flutter/material.dart';
 
 /// Draws a simple line.
 ///
@@ -39,6 +42,7 @@ class LinePainter {
       common.Color? fill,
       common.Color? stroke,
       bool? roundEndCaps,
+      bool? smoothLine,
       double? strokeWidthPx,
       List<int>? dashPattern,
       ui.Shader? shader}) {
@@ -76,7 +80,9 @@ class LinePainter {
       paint.strokeJoin = StrokeJoin.round;
       paint.style = PaintingStyle.stroke;
 
-      if (dashPattern == null || dashPattern.isEmpty) {
+      if (smoothLine ?? false) {
+        _drawSmoothLine(canvas, paint, points);
+      } else if (dashPattern == null || dashPattern.isEmpty) {
         if (roundEndCaps == true) {
           paint.strokeCap = StrokeCap.round;
         }
@@ -90,6 +96,19 @@ class LinePainter {
     if (clipBounds != null) {
       canvas.restore();
     }
+  }
+
+  /// Draws smooth lines between each point.
+  static void _drawSmoothLine(Canvas canvas, Paint paint, List<Point> points) {
+    List<Point>uniquePoints=[];
+    points.forEach((e){
+      bool isDuplicated = uniquePoints.firstWhereOrNull((p)=>p.x == e.x && p.y == e.y) != null;
+      if(!isDuplicated){
+        uniquePoints.add(e);
+      }
+    });
+    var path = MonotoneX.initPath(uniquePoints);
+    canvas.drawPath(path, paint);
   }
 
   /// Draws solid lines between each point.
